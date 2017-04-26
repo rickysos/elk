@@ -1,0 +1,119 @@
+version: "2"
+services:
+
+  elasticsearch_master:
+    mem_limit: 1536m
+    build: elasticsearch/
+    depends_on:
+      - consul
+    environment:
+      - CONSUL=consul
+      - ES_SERVICE_NAME=elasticsearch-master
+      - ES_NODE_MASTER=true
+      - ES_NODE_DATA=false
+      - CLUSTER_NAME=elasticsearch
+      - CONTAINERPILOT=file:///etc/containerpilot.json
+      - ES_JAVA_OPTS=-XX:-UseGCTaskAffinity -XX:-BindGCTaskThreadsToCPUs -XX:ParallelGCThreads=1 -XX:ParallelCMSThreads=1 -Xms1g -Xmx1g
+    command: >
+      /usr/local/bin/containerpilot
+      /usr/share/elasticsearch/bin/elasticsearch
+    external_links:
+      - consul:consul
+    networks:
+      - local
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+
+  elasticsearch_data:
+    container_name: elasticsearch_data
+    mem_limit: 1536m
+    build: elasticsearch/
+    depends_on: 
+      - elasticsearch_master
+    environment:
+      - CONSUL=consul
+      - ES_SERVICE_NAME=elasticsearch-data
+      - CLUSTER_NAME=elasticsearch
+      - ES_NODE_MASTER=false
+      - ES_NODE_DATA=true
+      - CONTAINERPILOT=file:///etc/containerpilot.json
+      - ES_JAVA_OPTS=-XX:-UseGCTaskAffinity -XX:-BindGCTaskThreadsToCPUs -XX:ParallelGCThreads=1 -XX:ParallelCMSThreads=1 -Xms1g -Xmx1g
+    command: >
+      /usr/local/bin/containerpilot
+      /usr/share/elasticsearch/bin/elasticsearch
+    external_links:
+      - consul:consul
+    networks:
+      - local
+
+  consul:
+    image: progrium/consul:latest
+    command: -server -bootstrap -ui-dir /ui
+    restart: always
+    networks:
+      - local
+    mem_limit: 128m
+    ports:
+      - 8500:8500
+    expose:
+      - 53
+      - 8300
+      - 8301
+      - 8302
+      - 8400
+      - 8500
+    dns:
+      - 127.0.0.1
+    container_name: consul  
+      
+  logstash:
+    container_name: logstash
+    mem_limit: 512m
+    build: logstash/
+    environment:
+      - CONSUL=consul
+      - CONTAINERPILOT=file:///etc/containerpilot.json
+    external_links:
+       - consul:consul
+       - elasticsearch:elasticsearch
+    networks:
+      - local
+    command: >
+      /usr/local/bin/containerpilot
+      /usr/share/logstash/bin/logstash -f /etc/logstash/conf.d/logstash.conf
+    depends_on: 
+      - elasticsearch_data
+    ports:
+      - "514:514"             # syslog tcp port
+      - "514/udp:514/udp"     # syslog udp port
+      - "5000:5000"           # syslog tcp port
+      - "56445:56445"         # log4j	
+      - "12201/udp:12201/udp" # gelf udp port
+      - "6000:6000"           # log4j 
+
+  kibana:
+    container_name: kibana
+    mem_limit: 512m
+    build: kibana/
+    environment:
+      - CONSUL=consul
+      - CONFIG_PATH=/usr/share/kibana/config/kibana.yml
+      - NODE_ENV=production
+      - CONTAINERPILOT=file:///etc/containerpilot.json
+    command: >
+      /usr/local/bin/containerpilot
+      /usr/share/kibana/node/bin/node
+      /usr/share/kibana/src/cli
+    depends_on:
+      - logstash
+    external_links:
+      - consul:consul
+    networks:
+      - local
+    ports:
+      - "5601:5601"
+
+networks:
+  local:
+    external: true 

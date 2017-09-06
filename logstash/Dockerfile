@@ -24,9 +24,9 @@ COPY /conf.d/logstash.conf /etc/logstash/conf.d
 COPY /bin/onStart.sh /usr/local/bin
 
 EXPOSE 514
-EXPOSE 514/udp
 EXPOSE 5000
 EXPOSE 56445
 EXPOSE 12201
 EXPOSE 24224
 EXPOSE 6000
+EXPOSE 7000

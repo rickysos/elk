@@ -86,12 +86,10 @@ services:
       - elasticsearch_data
     ports:
       - "514:514"             # syslog tcp port
-        # - "514/udp:514/udp"     # syslog udp port
       - "5000:5000"           # syslog tcp port
       - "56445:56445"         # log4j	
-        # - "12201/udp:12201/udp" # gelf udp port
       - "6000:6000"           # log4j 
-
+      - "7000:7000"           # elb
   kibana:
     container_name: kibana
     mem_limit: 512m
